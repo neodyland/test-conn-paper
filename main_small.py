@@ -72,11 +72,13 @@ def train_tinystories():
                 sample_generation = generate_text(
                     model, tokenizer, "Once upon a time in a land far, far away,"
                 )
+                input_sequences = val_tokens.to(device)
+                target_sequences = input_sequences[:, 1:].contiguous()
+                input_sequences = input_sequences[:, :-1].contiguous()
+                val_logits = compiled_model(input_sequences)
                 val_loss = F.cross_entropy(
-                    compiled_model(val_tokens.to(device)).view(
-                        -1, compiled_model.vocab_size
-                    ),
-                    val_tokens[:, 1:].contiguous().view(-1).to(device),
+                    val_logits.view(-1, val_logits.size(-1)),
+                    target_sequences.view(-1),
                 )
                 print(sample_generation, f"Validation Loss: {val_loss.item():.4f}")
 
