@@ -1,5 +1,4 @@
-import torch
-from main_big import train_tinystories
+from main_0_5b import train_tinystories
 
 
 if __name__ == "__main__":

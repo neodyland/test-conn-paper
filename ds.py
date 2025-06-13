@@ -1,5 +1,5 @@
 from transformers import AutoTokenizer
-from datasets import load_dataset, load_from_disk
+from datasets import load_from_disk, Dataset
 from torch.utils.data import DataLoader
 import os
 import torch
@@ -7,15 +7,9 @@ import numpy as np
 
 threads = os.cpu_count()
 tokenizer = AutoTokenizer.from_pretrained("HuggingFaceTB/SmolLM2-1.7B-Instruct")
-sequence_length = 256
 
 
-def process_ds():
-    dataset = load_dataset(
-        "roneneldan/TinyStories",
-        split="train",
-    )
-
+def process_ds(dataset: Dataset, sequence_length=256, ds_path="./data/ds"):
     def tokenize_and_create_chunks(examples):
         tokenized_texts = tokenizer(examples["text"]).input_ids
         all_token_ids = []
@@ -40,15 +34,11 @@ def process_ds():
         remove_columns=dataset.column_names,
         num_proc=threads,
     )
-    processed_dataset.save_to_disk("./data/ds")
+    processed_dataset.save_to_disk(ds_path)
 
 
-def load_ds():
-    return load_from_disk("./data/ds")
-
-
-def create_loader(batch_size: int):
-    dataset = load_ds()
+def create_loader(batch_size: int, ds_path="./data/ds"):
+    dataset = load_from_disk(ds_path)
 
     def collate_fn(batch):
         input_ids = [item["input_ids"] for item in batch]
@@ -61,7 +51,3 @@ def create_loader(batch_size: int):
         collate_fn=collate_fn,
         num_workers=0,
     )
-
-
-if __name__ == "__main__":
-    process_ds()

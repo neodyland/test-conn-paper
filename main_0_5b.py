@@ -1,16 +1,30 @@
 import torch
 import torch.nn.functional as F
-from torch.optim import AdamW
+import time
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from ds import create_loader, tokenizer
 from model import YAADModel
 import time
 from muon import SingleDeviceMuonWithAuxAdam
+import os
 
 torch.backends.cudnn.benchmark = True
 torch.set_float32_matmul_precision("high")
 GENERATE_MAX_TOKENS = 100
 GRADIENT_CLIP_VALUE = 1.0
+exp = time.strftime("%Y-%m-%d_%H-%M-%S")
+os.makedirs(f"data/exps/{exp}", exist_ok=True)
+log = open(f"data/exps/{exp}/train.log", "w")
+best_pt_path = f"data/exps/{exp}/best.pt"
+best_val_path = f"data/exps/{exp}/best_val.txt"
+best_val = float("inf")
+old_print = print
+
+
+def print(*args, **kwargs):
+    log.write(" ".join(map(str, args)) + "\n")
+    log.flush()
+    old_print(*args, **kwargs)  # Also print to console for real-time feedback
 
 
 @torch.inference_mode()
@@ -55,8 +69,7 @@ def calc_val_loss(device, compiled_model):
     return val_loss.item(), torch.exp(val_loss).item()
 
 
-def train_tinystories(model_configuration):
-    BATCH_SIZE = 64
+def train_tinystories(model_configuration, batch_size=64, ds_path="./data/tinystories"):
     LEARNING_RATE = 3e-4
     TRAINING_EPOCHS = 3
 
@@ -64,15 +77,15 @@ def train_tinystories(model_configuration):
     model = YAADModel(vocab_size=len(tokenizer), **model_configuration).to(
         device, dtype=torch.bfloat16
     )
+    total_parameters = sum(parameter.numel() for parameter in model.parameters())
+    print(f"Model created with {total_parameters / 1e6:.2f}M parameters.")
+    os._exit(0)
     compiled_model = torch.compile(
         model, options={"triton.cudagraphs": True}, fullgraph=True
     )
 
     print(f"Using device: {device}")
-    data_loader = create_loader(BATCH_SIZE)
-
-    total_parameters = sum(parameter.numel() for parameter in model.parameters())
-    print(f"Model created with {total_parameters / 1e6:.2f}M parameters.")
+    data_loader = create_loader(batch_size, ds_path)
 
     optimizer = SingleDeviceMuonWithAuxAdam(
         [
@@ -122,6 +135,18 @@ def train_tinystories(model_configuration):
                 print(
                     f"epoch={epoch_index} step={batch_index}/{len(data_loader)} time={time.time() - now:.4f}s loss={loss.item():.4f} val={val_loss:.4f} ppl={ppl:.4f}"
                 )
+                if batch_index % 1000 == 0 and val_loss < best_val:
+                    torch.save(
+                        model.state_dict(),
+                        best_pt_path,
+                    )
+                    if os.path.exists(best_val_path):
+                        os.remove(best_val_path)
+                    with open(best_val_path, "w") as f:
+                        f.write(
+                            f"epoch={epoch_index} step={batch_index}/{len(data_loader)} time={time.time() - now:.4f}s loss={loss.item():.4f} val={val_loss:.4f} ppl={ppl:.4f}\n"
+                        )
+                    best_val = val_loss
 
     print("Training finished.")
 
