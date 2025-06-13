@@ -5,28 +5,12 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 from tqdm import tqdm
 from ds import create_loader, tokenizer
 from model import YAADModel
+from main_big import generate_text, val_tokens
 
 torch.backends.cudnn.benchmark = True
 torch.set_float32_matmul_precision("high")
 GENERATE_MAX_TOKENS = 50
 GRADIENT_CLIP_VALUE = 1.0
-
-
-def generate_text(model, tokenizer, prompt_text):
-    device = next(model.parameters()).device
-    input_token_ids = tokenizer.encode(prompt_text, return_tensors="pt").to(device)
-
-    with torch.no_grad():
-        for _ in range(GENERATE_MAX_TOKENS):
-            model_outputs = model(input_token_ids)
-            next_token_logits = model_outputs[:, -1, :]
-            next_token_id = torch.argmax(next_token_logits, dim=-1).unsqueeze(0)
-            input_token_ids = torch.cat([input_token_ids, next_token_id], dim=1)
-
-        generated_tokens = input_token_ids[:, len(prompt_text) :]
-
-    generated_text = tokenizer.decode(generated_tokens[0], skip_special_tokens=True)
-    return generated_text
 
 
 def train_tinystories():
@@ -84,12 +68,17 @@ def train_tinystories():
             torch.nn.utils.clip_grad_norm_(model.parameters(), GRADIENT_CLIP_VALUE)
             optimizer.step()
             scheduler.step()
-
             if batch_index % 100 == 0:
                 sample_generation = generate_text(
                     model, tokenizer, "Once upon a time in a land far, far away,"
                 )
-                print(sample_generation)
+                val_loss = F.cross_entropy(
+                    compiled_model(val_tokens.to(device)).view(
+                        -1, compiled_model.vocab_size
+                    ),
+                    val_tokens[:, 1:].contiguous().view(-1).to(device),
+                )
+                print(sample_generation, f"Validation Loss: {val_loss.item():.4f}")
 
             cumulative_loss += loss.item()
             average_loss = cumulative_loss / (batch_index + 1)

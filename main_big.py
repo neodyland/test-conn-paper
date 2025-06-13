@@ -8,7 +8,7 @@ from model import YAADModel
 
 torch.backends.cudnn.benchmark = True
 torch.set_float32_matmul_precision("high")
-GENERATE_MAX_TOKENS = 200
+GENERATE_MAX_TOKENS = 100
 GRADIENT_CLIP_VALUE = 1.0
 
 
@@ -27,6 +27,18 @@ def generate_text(model, tokenizer, prompt_text):
 
     generated_text = tokenizer.decode(generated_tokens[0], skip_special_tokens=True)
     return generated_text
+
+
+val_tokens = tokenizer(
+    """Once upon a time, in a big forest, there lived a rhinoceros named Roxy. Roxy loved to climb. She climbed trees, rocks, and hills. One day, Roxy found an icy hill. She had never seen anything like it before. It was shiny and cold, and she wanted to climb it.
+Roxy tried to climb the icy hill, but it was very slippery. She tried again and again, but she kept falling down. Roxy was sad. She wanted to climb the icy hill so much. Then, she saw a little bird named Billy. Billy saw that Roxy was sad and asked, "Why are you sad, Roxy?"
+Roxy told Billy about the icy hill and how she couldn't climb it. Billy said, "I have an idea! Let's find some big leaves to put under your feet. They will help you climb the icy hill." Roxy and Billy looked for big leaves and found some. Roxy put the leaves under her feet and tried to climb the icy hill again.
+This time, Roxy didn't slip. She climbed and climbed until she reached the top of the icy hill. Roxy was so happy! She and Billy played on the icy hill all day. From that day on, Roxy and Billy were the best of friends, and they climbed and played together all the time. And Roxy learned that with a little help from a friend, she could climb anything.""",
+    max_length=256,
+    truncation=True,
+    return_tensors="pt",
+    padding="max_length",
+).input_ids
 
 
 def train_tinystories():
@@ -89,7 +101,13 @@ def train_tinystories():
                 sample_generation = generate_text(
                     model, tokenizer, "Once upon a time in a land far, far away,"
                 )
-                print(sample_generation)
+                val_loss = F.cross_entropy(
+                    compiled_model(val_tokens.to(device)).view(
+                        -1, compiled_model.vocab_size
+                    ),
+                    val_tokens[:, 1:].contiguous().view(-1).to(device),
+                )
+                print(sample_generation, f"Validation Loss: {val_loss.item():.4f}")
 
             cumulative_loss += loss.item()
             average_loss = cumulative_loss / (batch_index + 1)
