@@ -79,7 +79,6 @@ def train_tinystories(model_configuration, batch_size=64, ds_path="./data/tinyst
     )
     total_parameters = sum(parameter.numel() for parameter in model.parameters())
     print(f"Model created with {total_parameters / 1e6:.2f}M parameters.")
-    os._exit(0)
     compiled_model = torch.compile(
         model, options={"triton.cudagraphs": True}, fullgraph=True
     )
