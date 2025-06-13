@@ -13,18 +13,18 @@ GENERATE_MAX_TOKENS = 100
 GRADIENT_CLIP_VALUE = 1.0
 
 
+@torch.inference_mode()
 def generate_text(model, tokenizer, prompt_text):
     device = next(model.parameters()).device
     input_token_ids = tokenizer.encode(prompt_text, return_tensors="pt").to(device)
 
-    with torch.no_grad():
-        for _ in range(GENERATE_MAX_TOKENS):
-            model_outputs = model(input_token_ids)
-            next_token_logits = model_outputs[:, -1, :]
-            next_token_id = torch.argmax(next_token_logits, dim=-1).unsqueeze(0)
-            input_token_ids = torch.cat([input_token_ids, next_token_id], dim=1)
+    for _ in range(GENERATE_MAX_TOKENS):
+        model_outputs = model(input_token_ids)
+        next_token_logits = model_outputs[:, -1, :]
+        next_token_id = torch.argmax(next_token_logits, dim=-1).unsqueeze(0)
+        input_token_ids = torch.cat([input_token_ids, next_token_id], dim=1)
 
-        generated_tokens = input_token_ids[:, len(prompt_text) :]
+    generated_tokens = input_token_ids[:, len(prompt_text) :]
 
     generated_text = tokenizer.decode(generated_tokens[0], skip_special_tokens=True)
     return generated_text
@@ -40,6 +40,19 @@ This time, Roxy didn't slip. She climbed and climbed until she reached the top o
     return_tensors="pt",
     padding="max_length",
 ).input_ids
+
+
+@torch.inference_mode()
+def calc_val_loss(device, compiled_model):
+    input_sequences = val_tokens.to(device)
+    target_sequences = input_sequences[:, 1:].contiguous()
+    input_sequences = input_sequences[:, :-1].contiguous()
+    val_logits = compiled_model(input_sequences)
+    val_loss = F.cross_entropy(
+        val_logits.view(-1, val_logits.size(-1)),
+        target_sequences.view(-1),
+    )
+    return val_loss
 
 
 def train_tinystories(model_configuration):
@@ -99,17 +112,12 @@ def train_tinystories(model_configuration):
             scheduler.step()
 
             if batch_index % 100 == 0:
+                model.eval()
                 sample_generation = generate_text(
                     model, tokenizer, "Once upon a time in a land far, far away,"
                 )
-                input_sequences = val_tokens.to(device)
-                target_sequences = input_sequences[:, 1:].contiguous()
-                input_sequences = input_sequences[:, :-1].contiguous()
-                val_logits = compiled_model(input_sequences)
-                val_loss = F.cross_entropy(
-                    val_logits.view(-1, val_logits.size(-1)),
-                    target_sequences.view(-1),
-                )
+                val_loss = calc_val_loss(device, compiled_model)
+                model.train()
                 print(sample_generation)
                 print(
                     f"epoch={epoch_index} step={batch_index}/{len(data_loader)} time={time.time() - now:.4f}s loss={loss.item():.4f} val={val_loss.item():.4f}"
