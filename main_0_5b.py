@@ -14,7 +14,7 @@ GENERATE_MAX_TOKENS = 100
 GRADIENT_CLIP_VALUE = 1.0
 
 
-@torch.inference_mode()
+@torch.no_grad()
 def generate_text(model, tokenizer, prompt_text):
     device = next(model.parameters()).device
     input_token_ids = tokenizer.encode(prompt_text, return_tensors="pt").to(device)
@@ -43,7 +43,7 @@ This time, Roxy didn't slip. She climbed and climbed until she reached the top o
 ).input_ids
 
 
-@torch.inference_mode()
+@torch.no_grad()
 def calc_val_loss(device, compiled_model):
     input_sequences = val_tokens.to(device)
     target_sequences = input_sequences[:, 1:].contiguous()
