@@ -59,7 +59,7 @@ def create_loader(batch_size: int):
         batch_size=batch_size,
         shuffle=True,
         collate_fn=collate_fn,
-        num_workers=1,
+        num_workers=0,
     )
 
 
