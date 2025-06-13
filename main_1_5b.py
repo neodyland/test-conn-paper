@@ -2,6 +2,7 @@ import os
 
 os.environ["HF_HOME"] = "/raid/hf_cache"
 from main_0_5b import train_tinystories
+from ds import threads
 
 
 if __name__ == "__main__":
@@ -16,4 +17,5 @@ if __name__ == "__main__":
             "expansion_factor": 2,
         },
         ds_path="/raid/zyda2_dclm_sample/",
+        workers=threads // 2,
     )

@@ -69,7 +69,9 @@ def calc_val_loss(device, compiled_model):
     return val_loss.item(), torch.exp(val_loss).item()
 
 
-def train_tinystories(model_configuration, batch_size=64, ds_path="./data/tinystories"):
+def train_tinystories(
+    model_configuration, batch_size=64, ds_path="./data/tinystories", workers=0
+):
     LEARNING_RATE = 3e-4
     TRAINING_EPOCHS = 3
 
@@ -84,7 +86,7 @@ def train_tinystories(model_configuration, batch_size=64, ds_path="./data/tinyst
     )
 
     print(f"Using device: {device}")
-    data_loader = create_loader(batch_size, ds_path)
+    data_loader = create_loader(batch_size, ds_path, workers)
 
     optimizer = SingleDeviceMuonWithAuxAdam(
         [

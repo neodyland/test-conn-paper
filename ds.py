@@ -37,7 +37,7 @@ def process_ds(dataset: Dataset, sequence_length=256, ds_path="./data/ds"):
     processed_dataset.save_to_disk(ds_path)
 
 
-def create_loader(batch_size: int, ds_path="./data/ds"):
+def create_loader(batch_size: int, ds_path="./data/ds", workers=0):
     dataset = load_from_disk(ds_path)
 
     def collate_fn(batch):
@@ -49,5 +49,5 @@ def create_loader(batch_size: int, ds_path="./data/ds"):
         batch_size=batch_size,
         shuffle=True,
         collate_fn=collate_fn,
-        num_workers=0,
+        num_workers=workers,
     )
