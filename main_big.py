@@ -52,7 +52,7 @@ def calc_val_loss(device, compiled_model):
         val_logits.view(-1, val_logits.size(-1)),
         target_sequences.view(-1),
     )
-    return val_loss
+    return val_loss.item(), torch.exp(val_loss).item()
 
 
 def train_tinystories(model_configuration):
@@ -116,11 +116,11 @@ def train_tinystories(model_configuration):
                 sample_generation = generate_text(
                     model, tokenizer, "Once upon a time in a land far, far away,"
                 )
-                val_loss = calc_val_loss(device, compiled_model)
+                val_loss, ppl = calc_val_loss(device, compiled_model)
                 model.train()
                 print(sample_generation)
                 print(
-                    f"epoch={epoch_index} step={batch_index}/{len(data_loader)} time={time.time() - now:.4f}s loss={loss.item():.4f} val={val_loss.item():.4f}"
+                    f"epoch={epoch_index} step={batch_index}/{len(data_loader)} time={time.time() - now:.4f}s loss={loss.item():.4f} val={val_loss:.4f} ppl={ppl:.4f}"
                 )
 
     print("Training finished.")
