@@ -65,13 +65,11 @@ def train_tinystories(
     best_pt_path = f"data/exps/{exp}/best.pt"
     best_val_path = f"data/exps/{exp}/best_val.txt"
     best_val = float("inf")
-    old_print = print
 
     def new_print(*args, **kwargs):
         log.write(" ".join(map(str, args)) + "\n")
         log.flush()
-        old_print(*args, **kwargs)
-    print = new_print
+        print(*args, **kwargs)
 
     LEARNING_RATE = 3e-4
     TRAINING_EPOCHS = 3
@@ -81,12 +79,12 @@ def train_tinystories(
         device, dtype=torch.bfloat16
     )
     total_parameters = sum(parameter.numel() for parameter in model.parameters())
-    print(f"Model created with {total_parameters / 1e6:.2f}M parameters.")
+    new_print(f"Model created with {total_parameters / 1e6:.2f}M parameters.")
     compiled_model = torch.compile(
         model, options={"triton.cudagraphs": True}, fullgraph=True
     )
 
-    print(f"Using device: {device}")
+    new_print(f"Using device: {device}")
     data_loader = create_loader(batch_size, ds_path, workers)
 
     optimizer = SingleDeviceMuonWithAuxAdam(
@@ -133,8 +131,8 @@ def train_tinystories(
                 )
                 val_loss, ppl = calc_val_loss(device, compiled_model)
                 model.train()
-                print(sample_generation)
-                print(
+                new_print(sample_generation)
+                new_print(
                     f"epoch={epoch_index} step={batch_index}/{len(data_loader)} time={time.time() - now:.4f}s loss={loss.item():.4f} val={val_loss:.4f} ppl={ppl:.4f}"
                 )
                 if batch_index % 1000 == 0 and val_loss < best_val:
@@ -150,7 +148,7 @@ def train_tinystories(
                         )
                     best_val = val_loss
 
-    print("Training finished.")
+    new_print("Training finished.")
 
 
 if __name__ == "__main__":
