@@ -1,5 +1,6 @@
 import os
 
+os.environ["TOKENIZERS_PARALLELISM"] = "true"
 os.environ["HF_HOME"] = "/raid/hf_cache"
 from main_0_5b import train_tinystories
 from ds import threads

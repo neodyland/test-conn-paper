@@ -12,19 +12,6 @@ torch.backends.cudnn.benchmark = True
 torch.set_float32_matmul_precision("high")
 GENERATE_MAX_TOKENS = 100
 GRADIENT_CLIP_VALUE = 1.0
-exp = time.strftime("%Y-%m-%d_%H-%M-%S")
-os.makedirs(f"data/exps/{exp}", exist_ok=True)
-log = open(f"data/exps/{exp}/train.log", "w")
-best_pt_path = f"data/exps/{exp}/best.pt"
-best_val_path = f"data/exps/{exp}/best_val.txt"
-best_val = float("inf")
-old_print = print
-
-
-def print(*args, **kwargs):
-    log.write(" ".join(map(str, args)) + "\n")
-    log.flush()
-    old_print(*args, **kwargs)  # Also print to console for real-time feedback
 
 
 @torch.inference_mode()
@@ -72,6 +59,19 @@ def calc_val_loss(device, compiled_model):
 def train_tinystories(
     model_configuration, batch_size=64, ds_path="./data/tinystories", workers=0
 ):
+    exp = time.strftime("%Y-%m-%d_%H-%M-%S")
+    os.makedirs(f"data/exps/{exp}", exist_ok=True)
+    log = open(f"data/exps/{exp}/train.log", "w")
+    best_pt_path = f"data/exps/{exp}/best.pt"
+    best_val_path = f"data/exps/{exp}/best_val.txt"
+    best_val = float("inf")
+    old_print = print
+
+    def print(*args, **kwargs):
+        log.write(" ".join(map(str, args)) + "\n")
+        log.flush()
+        old_print(*args, **kwargs)
+
     LEARNING_RATE = 3e-4
     TRAINING_EPOCHS = 3
 
