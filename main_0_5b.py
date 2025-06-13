@@ -67,10 +67,11 @@ def train_tinystories(
     best_val = float("inf")
     old_print = print
 
-    def print(*args, **kwargs):
+    def new_print(*args, **kwargs):
         log.write(" ".join(map(str, args)) + "\n")
         log.flush()
         old_print(*args, **kwargs)
+    print = new_print
 
     LEARNING_RATE = 3e-4
     TRAINING_EPOCHS = 3
