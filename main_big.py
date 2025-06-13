@@ -2,9 +2,9 @@ import torch
 import torch.nn.functional as F
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
-from tqdm import tqdm
 from ds import create_loader, tokenizer
 from model import YAADModel
+import time
 
 torch.backends.cudnn.benchmark = True
 torch.set_float32_matmul_precision("high")
@@ -72,15 +72,11 @@ def train_tinystories():
 
     optimizer = AdamW(model.parameters(), lr=LEARNING_RATE)
     scheduler = CosineAnnealingLR(optimizer, T_max=len(data_loader) * TRAINING_EPOCHS)
-
+    now = time.time()
     for epoch_index in range(TRAINING_EPOCHS):
         model.train()
-        progress_bar = tqdm(
-            data_loader, desc=f"Epoch {epoch_index + 1}/{TRAINING_EPOCHS}"
-        )
-        cumulative_loss = 0.0
 
-        for batch_index, batch_data in enumerate(progress_bar):
+        for batch_index, batch_data in enumerate(data_loader):
             input_sequences = batch_data["input_ids"].to(device)
             target_sequences = input_sequences[:, 1:].contiguous()
             input_sequences = input_sequences[:, :-1].contiguous()
@@ -109,17 +105,10 @@ def train_tinystories():
                     val_logits.view(-1, val_logits.size(-1)),
                     target_sequences.view(-1),
                 )
-                print(sample_generation, f"Validation Loss: {val_loss.item():.4f}")
-
-            cumulative_loss += loss.item()
-            average_loss = cumulative_loss / (batch_index + 1)
-
-            progress_bar.set_postfix(
-                {
-                    "loss": f"{loss.item():.4f}",
-                    "avg_loss": f"{average_loss:.4f}",
-                }
-            )
+                print(sample_generation)
+                print(
+                    f"epoch={epoch_index} step={batch_index}/{len(data_loader)} time={time.time() - now:.4f}s loss={loss.item():.4f} val={val_loss.item():.4f}"
+                )
 
     print("Training finished.")
 
