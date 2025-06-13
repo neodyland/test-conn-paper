@@ -5,6 +5,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 from ds import create_loader, tokenizer
 from model import YAADModel
 import time
+from muon import SingleDeviceMuonWithAuxAdam
 
 torch.backends.cudnn.benchmark = True
 torch.set_float32_matmul_precision("high")
@@ -41,25 +42,12 @@ This time, Roxy didn't slip. She climbed and climbed until she reached the top o
 ).input_ids
 
 
-def train_tinystories():
+def train_tinystories(model_configuration):
     BATCH_SIZE = 64
     LEARNING_RATE = 3e-4
     TRAINING_EPOCHS = 3
 
-    model_configuration = {
-        "number_of_layers": 28,
-        "model_dimension": 1024,
-        "head_dimension": 128,
-        "state_dimension": 256,
-        "feedforward_dimension": 1024 * 3,
-        "low_rank_dimension": 64,
-        "expansion_factor": 2,
-    }
-
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"Using device: {device}")
-    data_loader = create_loader(BATCH_SIZE)
-
     model = YAADModel(vocab_size=len(tokenizer), **model_configuration).to(
         device, dtype=torch.bfloat16
     )
@@ -67,10 +55,26 @@ def train_tinystories():
         model, options={"triton.cudagraphs": True}, fullgraph=True
     )
 
+    print(f"Using device: {device}")
+    data_loader = create_loader(BATCH_SIZE)
+
     total_parameters = sum(parameter.numel() for parameter in model.parameters())
     print(f"Model created with {total_parameters / 1e6:.2f}M parameters.")
 
-    optimizer = AdamW(model.parameters(), lr=LEARNING_RATE)
+    optimizer = SingleDeviceMuonWithAuxAdam(
+        [
+            {
+                "params": model.muon_parameters(),
+                "lr": LEARNING_RATE * 5.0,
+                "use_muon": True,
+            },
+            {
+                "params": model.adam_parameters(),
+                "lr": LEARNING_RATE,
+                "use_muon": False,
+            },
+        ]
+    )
     scheduler = CosineAnnealingLR(optimizer, T_max=len(data_loader) * TRAINING_EPOCHS)
     now = time.time()
     for epoch_index in range(TRAINING_EPOCHS):
@@ -90,6 +94,7 @@ def train_tinystories():
 
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), GRADIENT_CLIP_VALUE)
+
             optimizer.step()
             scheduler.step()
 
@@ -114,4 +119,14 @@ def train_tinystories():
 
 
 if __name__ == "__main__":
-    train_tinystories()
+    train_tinystories(
+        model_configuration={
+            "number_of_layers": 28,
+            "model_dimension": 1024,
+            "head_dimension": 128,
+            "state_dimension": 256,
+            "feedforward_dimension": 1024 * 3,
+            "low_rank_dimension": 64,
+            "expansion_factor": 2,
+        }
+    )

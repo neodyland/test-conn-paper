@@ -443,3 +443,23 @@ class YAADModel(nn.Module):
         normalized_output = self.output_norm(hidden_states)
         logits = self.language_model_head(normalized_output)
         return logits
+
+    def muon_parameters(self):
+        params = [
+            *self.transformer_layers.parameters(),
+            *self.output_norm.parameters(),
+        ]
+        params = [p for p in params if p.requires_grad and p.dim() >= 2]
+        return params
+
+    def adam_parameters(self):
+        params = [
+            *self.transformer_layers.parameters(),
+            *self.output_norm.parameters(),
+        ]
+        params = (
+            [p for p in params if p.requires_grad and p.dim() < 2]
+            + list(self.language_model_head.parameters())
+            + list(self.token_embedding.parameters())
+        )
+        return params
