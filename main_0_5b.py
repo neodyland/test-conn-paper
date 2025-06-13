@@ -5,7 +5,6 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 from ds import create_loader, tokenizer
 from model import YAADModel
 import time
-from muon import SingleDeviceMuonWithAuxAdam
 import os
 from torch.optim import AdamW
 
@@ -15,7 +14,7 @@ GENERATE_MAX_TOKENS = 100
 GRADIENT_CLIP_VALUE = 1.0
 
 
-@torch.no_grad()
+@torch.inference_mode()
 def generate_text(model, tokenizer, prompt_text):
     device = next(model.parameters()).device
     input_token_ids = tokenizer.encode(prompt_text, return_tensors="pt").to(device)
@@ -44,7 +43,7 @@ This time, Roxy didn't slip. She climbed and climbed until she reached the top o
 ).input_ids
 
 
-@torch.no_grad()
+@torch.inference_mode()
 def calc_val_loss(device, compiled_model):
     input_sequences = val_tokens.to(device)
     target_sequences = input_sequences[:, 1:].contiguous()
@@ -88,20 +87,6 @@ def train_tinystories(
     new_print(f"Using device: {device}")
     data_loader = create_loader(batch_size, ds_path, workers)
 
-    # optimizer = SingleDeviceMuonWithAuxAdam(
-    #    [
-    #        {
-    #            "params": model.muon_parameters(),
-    #            "lr": LEARNING_RATE * 5.0,
-    #            "use_muon": True,
-    #        },
-    #        {
-    #            "params": model.adam_parameters(),
-    #            "lr": LEARNING_RATE,
-    #            "use_muon": False,
-    #        },
-    #    ]
-    # )
     optimizer = AdamW(
         model.parameters(),
         lr=LEARNING_RATE,
