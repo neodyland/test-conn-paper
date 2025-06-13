@@ -19,4 +19,5 @@ if __name__ == "__main__":
         },
         ds_path="/raid/zyda2_dclm_sample/",
         workers=threads // 2,
+        batch_size=84,
     )
