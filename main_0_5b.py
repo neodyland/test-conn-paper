@@ -132,11 +132,13 @@ def train_tinystories(
 
             if batch_index % 100 == 0:
                 model.eval()
+                compiled_model.eval()
                 sample_generation = generate_text(
                     model, tokenizer, "Once upon a time in a land far, far away,"
                 )
                 val_loss, ppl = calc_val_loss(device, compiled_model)
                 model.train()
+                compiled_model.train()
                 new_print(sample_generation)
                 new_print(
                     f"epoch={epoch_index} step={batch_index}/{len(data_loader)} time={time.time() - now:.4f}s loss={loss.item():.4f} val={val_loss:.4f} ppl={ppl:.4f}"
