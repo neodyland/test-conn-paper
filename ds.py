@@ -36,7 +36,7 @@ def process_ds():
     processed_dataset = dataset.map(
         tokenize_and_create_chunks,
         batched=True,
-        batch_size=100000,
+        batch_size=10000,
         remove_columns=dataset.column_names,
         num_proc=threads,
     )
