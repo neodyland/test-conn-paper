@@ -7,6 +7,7 @@ from model import YAADModel
 import time
 from muon import SingleDeviceMuonWithAuxAdam
 import os
+from torch.optim import AdamW
 
 torch.backends.cudnn.benchmark = True
 torch.set_float32_matmul_precision("high")
@@ -87,19 +88,24 @@ def train_tinystories(
     new_print(f"Using device: {device}")
     data_loader = create_loader(batch_size, ds_path, workers)
 
-    optimizer = SingleDeviceMuonWithAuxAdam(
-        [
-            {
-                "params": model.muon_parameters(),
-                "lr": LEARNING_RATE * 5.0,
-                "use_muon": True,
-            },
-            {
-                "params": model.adam_parameters(),
-                "lr": LEARNING_RATE,
-                "use_muon": False,
-            },
-        ]
+    # optimizer = SingleDeviceMuonWithAuxAdam(
+    #    [
+    #        {
+    #            "params": model.muon_parameters(),
+    #            "lr": LEARNING_RATE * 5.0,
+    #            "use_muon": True,
+    #        },
+    #        {
+    #            "params": model.adam_parameters(),
+    #            "lr": LEARNING_RATE,
+    #            "use_muon": False,
+    #        },
+    #    ]
+    # )
+    optimizer = AdamW(
+        model.parameters(),
+        lr=LEARNING_RATE,
+        fused=True,
     )
     scheduler = CosineAnnealingLR(optimizer, T_max=len(data_loader) * TRAINING_EPOCHS)
     now = time.time()
